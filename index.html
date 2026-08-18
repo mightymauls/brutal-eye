@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brutal Eye</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+    background: #1c1b19;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #eae7e0;
+    padding: 40px 20px 100px;
+  }
+
+  .be-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 100px);
+    grid-template-rows: repeat(3, 100px);
+    gap: 9px;
+  }
+
+  .be-card {
+    position: relative;
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(circle at 25% 20%, rgba(255,255,255,0.18), transparent 45%),
+      linear-gradient(150deg, #e4e1da 0%, #d5d2c9 60%, #c9c5bb 100%);
+    box-shadow: inset 2px 2px 0 rgba(255,255,255,0.5), inset -2px -2px 5px rgba(0,0,0,0.15);
+  }
+
+  /* sunken center panel — reads as a raised outer edge around it */
+  .be-card::before {
+    content: "";
+    position: absolute;
+    inset: 15px;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, 0.14);
+    box-shadow:
+      inset 2px 2px 3px rgba(0, 0, 0, 0.35),
+      inset -1px -1px 1px rgba(255, 255, 255, 0.15);
+    z-index: 0;
+  }
+
+  .iris { fill: #26241f; }
+  .sclera { fill: none; stroke: #26241f; stroke-width: 1.5; }
+
+  .be-eye-svg { width: 64px; height: 64px; overflow: hidden; position: relative; z-index: 1; }
+
+  .pupil-grp { animation: be-look 6s ease-in-out infinite; }
+  .be-card:nth-child(2) .pupil-grp, .be-card:nth-child(5) .pupil-grp, .be-card:nth-child(8) .pupil-grp { animation-delay: -1.5s; }
+  .be-card:nth-child(3) .pupil-grp, .be-card:nth-child(6) .pupil-grp, .be-card:nth-child(9) .pupil-grp { animation-delay: -3s; }
+  .be-card:nth-child(4) .pupil-grp, .be-card:nth-child(7) .pupil-grp { animation-delay: -4.5s; }
+
+  @keyframes be-look {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-3px, 1px); }
+    40% { transform: translate(3px, -2px); }
+    60% { transform: translate(2px, 2px); }
+    80% { transform: translate(-2px, -1px); }
+  }
+
+  /*
+    Blink: the eye is clipped by an animated almond aperture — nothing is
+    drawn on top, so the card texture shows through with no lid edges.
+    Blinks are JS-scheduled one-shots (random interval + speed), with a
+    synced eyeball squash and iris dip.
+  */
+  .be-eye-svg {
+    clip-path: path("M 2.3 -6.9 Q 32 -6.9 61.7 -6.9 L 61.7 70.9 Q 32 70.9 2.3 70.9 Z");
+  }
+  .blinking .be-eye-svg { animation: be-aperture var(--blink-speed, 420ms) both; }
+  .blinking .blink-sync { animation: be-dip var(--blink-speed, 420ms) ease-in-out both; }
+  .blinking .eye-squash { animation: be-squash var(--blink-speed, 420ms) ease-in-out both; }
+
+  .eye-squash { transform-box: view-box; transform-origin: 28px 28px; }
+
+  @keyframes be-aperture {
+    0% {
+      clip-path: path("M 2.3 -6.9 Q 32 -6.9 61.7 -6.9 L 61.7 70.9 Q 32 70.9 2.3 70.9 Z");
+      animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+    }
+    32% {
+      clip-path: path("M 2.3 32 Q 32 61.7 61.7 32 L 61.7 32 Q 32 61.7 2.3 32 Z");
+      animation-timing-function: linear;
+    }
+    45% {
+      clip-path: path("M 2.3 32 Q 32 61.7 61.7 32 L 61.7 32 Q 32 61.7 2.3 32 Z");
+      animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    100% {
+      clip-path: path("M 2.3 -6.9 Q 32 -6.9 61.7 -6.9 L 61.7 70.9 Q 32 70.9 2.3 70.9 Z");
+    }
+  }
+  @keyframes be-dip {
+    0%   { transform: translateY(0); }
+    34%  { transform: translateY(1.5px); }
+    48%  { transform: translateY(1.5px); }
+    100% { transform: translateY(0); }
+  }
+  @keyframes be-squash {
+    0%   { transform: scaleY(1); }
+    36%  { transform: scaleY(0.93); }
+    48%  { transform: scaleY(0.93); }
+    100% { transform: scaleY(1); }
+  }
+
+  /*
+    Rare coordinated gaze events (every ~25–55s):
+    "sweep" — all eyes drift to one direction; "stare" — all eyes turn toward
+    one card while it stares dead-center and vibrates until they look away.
+  */
+  .gaze-grp { transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1); }
+  .gazing .pupil-grp { animation-play-state: paused; }
+  /* the whole target eye trembles, not just the pupil — much more visible */
+  .stare-target .eye-squash { animation: be-vibrate 80ms linear infinite; }
+
+  @keyframes be-vibrate {
+    0%, 100% { transform: translateX(-1px); }
+    50%      { transform: translateX(1px); }
+  }
+
+  .quote {
+    margin: 0;
+    font-size: 14px;
+    font-style: italic;
+    letter-spacing: 0.04em;
+    color: #a9a49a;
+    text-align: center;
+  }
+
+  .menu {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+  .level-btn {
+    appearance: none;
+    text-decoration: none;
+    border: 1px solid #55524c;
+    background: #2a2926;
+    color: #cfcac0;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 11px 20px;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+  .level-btn:hover { background: #37352f; border-color: #74705f; color: #eae7e0; }
+  .level-btn:active { transform: translateY(1px); }
+  .level-btn span { display: block; font-size: 9px; font-weight: 400; letter-spacing: 0.12em; color: #7d786c; margin-top: 4px; }
+  .level-btn:hover span { color: #a9a49a; }
+
+  .provided {
+    position: fixed;
+    top: 14px;
+    right: 16px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: #4f4c46;
+    z-index: 25;
+    transition: color 0.2s ease;
+  }
+  .provided:hover { color: #a9a49a; }
+
+  /* ---- footer nav ---- */
+  .footer-nav {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    display: flex;
+    justify-content: center;
+    gap: 46px;
+    padding: 14px 0 16px;
+    background: #1c1b19;
+    border-top: 1px solid #35332e;
+    z-index: 30;
+  }
+  .nav-btn {
+    appearance: none;
+    background: none;
+    border: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: #7d786c;
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+  .nav-btn:hover, .nav-btn.open { color: #eae7e0; }
+  .nav-btn svg { display: block; }
+
+  /* ---- overlay panels ---- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 9, 8, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 40;
+    padding: 20px;
+  }
+  .overlay[hidden] { display: none; }
+  .panel {
+    background: #232220;
+    border: 1px solid #55524c;
+    width: 100%;
+    max-width: 420px;
+    max-height: 78vh;
+    overflow-y: auto;
+    padding: 0;
+  }
+  .panel[hidden] { display: none; }
+  .panel header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid #35332e;
+    position: sticky;
+    top: 0;
+    background: #232220;
+  }
+  .panel h2 {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #a9a49a;
+  }
+  .close {
+    appearance: none;
+    background: none;
+    border: 1px solid #55524c;
+    color: #a9a49a;
+    width: 24px; height: 24px;
+    line-height: 1;
+    font-size: 14px;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+  .close:hover { color: #eae7e0; border-color: #74705f; }
+  .panel-body { padding: 22px 18px; }
+
+  /* art gallery */
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .gallery figure { margin: 0; }
+  .ph {
+    aspect-ratio: 1;
+    background:
+      radial-gradient(circle at 25% 20%, rgba(255,255,255,0.18), transparent 45%),
+      linear-gradient(150deg, #e4e1da 0%, #d5d2c9 60%, #c9c5bb 100%);
+    box-shadow: inset 2px 2px 0 rgba(255,255,255,0.5), inset -2px -2px 5px rgba(0,0,0,0.15);
+  }
+  .ph.v2 { background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.06), transparent 40%), linear-gradient(160deg, #5d5a56 0%, #363432 100%); box-shadow: inset 1px 1px 0 rgba(255,255,255,0.12), inset -2px -2px 5px rgba(0,0,0,0.45); }
+  .ph.v3 { background: radial-gradient(circle at 25% 20%, rgba(255,255,255,0.14), transparent 45%), linear-gradient(155deg, #cf8a68 0%, #a35d3f 100%); box-shadow: inset 1px 1px 0 rgba(255,255,255,0.3), inset -2px -2px 5px rgba(60,20,8,0.3); }
+  .gallery figcaption {
+    margin-top: 5px;
+    font-size: 8px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #7d786c;
+  }
+  /* in-production overlay — media not shot yet */
+  .ph { position: relative; }
+  .ph.wip::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(20, 19, 17, 0.72);
+  }
+  .ph.wip::after {
+    content: "in production";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #cfcac0;
+    border: 1px dashed rgba(207, 202, 192, 0.35);
+    margin: 7px;
+  }
+  .detail .ph.wip::after { font-size: 11px; letter-spacing: 0.22em; margin: 14px; }
+
+  .sec-blurb {
+    margin: 0 0 12px;
+    font-size: 11px;
+    line-height: 1.7;
+    color: #a9a49a;
+  }
+
+  .wip-note {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border: 1px dashed #3c3a34;
+    padding: 9px 12px;
+    margin: 0 0 12px;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #7d786c;
+  }
+  .wip-note b { color: #cfcac0; font-weight: 600; }
+
+  /* piece detail is built but not debuted — set PIECE_DETAIL = true to enable */
+  .gallery.clickable figure { cursor: pointer; }
+  .gallery.clickable figure:hover figcaption { color: #eae7e0; }
+  .gallery.clickable figure:hover .ph { outline: 1px solid #74705f; outline-offset: 2px; }
+
+  /* exhibition info block */
+  .exhibit {
+    border: 1px solid #35332e;
+    padding: 14px 15px;
+    margin-bottom: 20px;
+  }
+  .exhibit h3 {
+    margin: 0 0 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #cfcac0;
+  }
+  .exhibit p {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.7;
+    color: #a9a49a;
+  }
+  .credit-link {
+    color: #cfcac0;
+    text-decoration: none;
+    border-bottom: 1px solid #55524c;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+  .credit-link:hover { color: #eae7e0; border-color: #a9a49a; }
+
+  .exhibit dl {
+    margin: 10px 0 0;
+    display: grid;
+    grid-template-columns: 62px 1fr;
+    gap: 3px 10px;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .exhibit dt { color: #6d685e; }
+  .exhibit dd { margin: 0; color: #cfcac0; }
+
+  .about {
+    border-top: 1px solid #35332e;
+    margin-top: 18px;
+    padding-top: 18px;
+    margin-bottom: 22px;
+  }
+  .about summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #6d685e;
+    transition: color 0.2s ease;
+  }
+  .about summary::-webkit-details-marker { display: none; }
+  .about summary:hover { color: #cfcac0; }
+  .about summary::after {
+    content: "+";
+    font-size: 13px;
+    line-height: 1;
+    color: #55524c;
+  }
+  .about[open] summary::after { content: "−"; }
+  .about[open] summary { color: #cfcac0; margin-bottom: 12px; }
+  .about p {
+    margin: 0 0 10px;
+    font-size: 11px;
+    line-height: 1.75;
+    color: #a9a49a;
+  }
+  .about p:last-child { margin-bottom: 0; color: #cfcac0; }
+
+  .sec-label {
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #6d685e;
+    margin: 0 0 10px;
+  }
+
+  /* piece detail view */
+  .detail[hidden] { display: none; }
+  .detail .ph { width: 100%; aspect-ratio: 1; }
+  .detail h3 {
+    margin: 14px 0 2px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #eae7e0;
+  }
+  .detail .sub {
+    margin: 0 0 12px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6d685e;
+  }
+  .detail dl {
+    margin: 0 0 14px;
+    display: grid;
+    grid-template-columns: 78px 1fr;
+    gap: 5px 10px;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+  .detail dt { color: #6d685e; text-transform: uppercase; font-size: 9px; letter-spacing: 0.12em; }
+  .detail dd { margin: 0; color: #cfcac0; }
+  .detail .note {
+    margin: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    color: #a9a49a;
+    border-top: 1px dashed #3c3a34;
+    padding-top: 12px;
+  }
+  .back-btn {
+    appearance: none;
+    background: none;
+    border: none;
+    padding: 0;
+    color: #7d786c;
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-bottom: 14px;
+    transition: color 0.2s ease;
+  }
+  .back-btn:hover { color: #eae7e0; }
+
+  /* shop section — separated from pieces above */
+  .shop-head {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #55524c;
+  }
+  .shop-head .sec-label { color: #cfcac0; margin-bottom: 6px; }
+  .shop-head .sec-blurb { margin-bottom: 0; }
+
+  /* preorder block */
+  .preorder {
+    border: 1px solid #55524c;
+    margin-top: 14px;
+    padding: 16px 15px;
+  }
+  .preorder + .preorder { margin-top: 10px; }
+  .preorder h3 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #eae7e0;
+  }
+  .preorder .tag {
+    display: inline-block;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #7d786c;
+    border: 1px solid #3c3a34;
+    padding: 3px 7px;
+    margin: 0 0 8px;
+  }
+  .preorder p {
+    margin: 0 0 12px;
+    font-size: 11px;
+    line-height: 1.7;
+    color: #a9a49a;
+  }
+  .preorder .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-top: 1px dashed #3c3a34;
+    padding-top: 12px;
+  }
+  .preorder .price {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #6d685e;
+  }
+  .preorder .price b { display: block; font-size: 15px; font-weight: 600; letter-spacing: 0.04em; color: #eae7e0; margin-top: 3px; }
+  .pay-btn {
+    appearance: none;
+    text-decoration: none;
+    border: 1px solid #55524c;
+    background: #2a2926;
+    color: #cfcac0;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 11px 18px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+  .pay-btn:hover { background: #37352f; border-color: #74705f; color: #eae7e0; }
+  .pay-btn:active { transform: translateY(1px); }
+
+  /* mystery tile: blacked out */
+  .ph.mystery {
+    background: #191817;
+    box-shadow: inset 2px 2px 3px rgba(0,0,0,0.5), inset -1px -1px 1px rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4a4740;
+    font-size: 20px;
+  }
+
+  /* log: its own scroll region so the panel stays a fixed height */
+  .log-scroll {
+    max-height: 58vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #4a473f #232220;
+  }
+  .log-scroll::-webkit-scrollbar { width: 8px; }
+  .log-scroll::-webkit-scrollbar-track { background: #1e1d1b; }
+  .log-scroll::-webkit-scrollbar-thumb { background: #4a473f; }
+  .log-scroll::-webkit-scrollbar-thumb:hover { background: #6d685e; }
+
+  /* log entries */
+  .log-entry {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    color: #cfcac0;
+    padding: 14px 0;
+    border-bottom: 1px dashed #3c3a34;
+  }
+  .log-entry:first-child { padding-top: 0; }
+  .log-entry:last-child { border-bottom: none; padding-bottom: 0; }
+  .log-entry .meta {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #7d786c;
+    margin-bottom: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .be-eye-svg, .blink-sync, .eye-squash, .gaze-grp, .pupil-grp { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="be-grid" id="grid"></div>
+
+  <a class="provided" href="https://mightymauls.com">provided by mightymauls.com</a>
+
+  <p class="quote">"i dont know whats happening"</p>
+
+  <nav class="footer-nav">
+    <button class="nav-btn" data-panel="game">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2.5" y="2.5" width="6" height="6"/><rect x="11.5" y="2.5" width="6" height="6"/>
+        <rect x="2.5" y="11.5" width="6" height="6"/><rect x="11.5" y="11.5" width="6" height="6"/>
+      </svg>
+      game
+    </button>
+    <button class="nav-btn" data-panel="art">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2.5" y="2.5" width="15" height="15"/>
+        <path d="M2.5 13.5 L7.5 8.5 L11 12 L13.5 9.5 L17.5 13.5"/>
+        <circle cx="13" cy="6.5" r="1.2"/>
+      </svg>
+      art
+    </button>
+    <button class="nav-btn" data-panel="log">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="3.5" y="2.5" width="13" height="15"/>
+        <path d="M6.5 6.5 h7 M6.5 10 h7 M6.5 13.5 h4"/>
+      </svg>
+      log
+    </button>
+  </nav>
+
+  <div class="overlay" id="overlay" hidden>
+    <section class="panel" id="panel-game" hidden>
+      <header><h2>game</h2><button class="close" aria-label="close">×</button></header>
+      <div class="panel-body">
+        <nav class="menu">
+          <a class="level-btn" href="game.html">the room<span>nine · 3 × 3</span></a>
+          <a class="level-btn" href="game.html?grid=6">the crowd<span>thirty-six · 6 × 6</span></a>
+        </nav>
+
+      </div>
+    </section>
+
+    <section class="panel" id="panel-art" hidden>
+      <header><h2>art</h2><button class="close" aria-label="close">×</button></header>
+      <div class="panel-body" id="artIndex">
+        <div class="exhibit">
+          <h3>brutal eye</h3>
+          <p>An ongoing body of work in cement, glass, and metal — tiles, domes, and larger forms, each built around the eye. Glass and metal by <a class="credit-link" href="https://www.matcaso.com" id="mmLink">Mathew Morgan</a>. Cement forms by Mighty Mauls in collaboration with <a class="credit-link" href="https://instagram.com/" id="bstLink">Brutally Smart Tech</a>.</p>
+          <dl>
+            <dt>status</dt><dd>in production</dd>
+            <dt>edition</dt><dd>9 + prototypes</dd>
+            <dt>opening</dt><dd>tbd</dd>
+          </dl>
+        </div>
+
+        <details class="about">
+          <summary>on the game — why the tiles watch each other</summary>
+          <p>This started as a cement square with an eye in it. Once there were nine, they started behaving like they knew about each other.</p>
+          <p>Nothing about a square changes when it moves. Only what's beside it does. Two set next to each other get read as a pair — as if nearness were the same as knowing. The grid never asks whether it's true, and neither does anyone looking at it.</p>
+          <p>Under that much attention the safest move is to match. Go blank, fall in, sit where the pattern expects. The grid rewards it every time.</p>
+        </details>
+
+        <p class="sec-label">pieces</p>
+        <p class="sec-blurb">Finished pieces, process shots, and notes as they come. Every square from the exhibit will end up here.</p>
+        <div class="gallery" id="gallery"></div>
+
+        <div class="shop-head">
+          <p class="sec-label">shop</p>
+        </div>
+
+        <div class="preorder">
+          <h3>mystery tile</h3>
+          <p>The step before the exhibit. Fully finished, same material and process — just without the design treatment the show pieces get. Which dye, ratio, and inlay you get is decided at the pour.</p>
+          <div class="row">
+            <span class="price">preorder<b>$8</b></span>
+            <a class="pay-btn" href="https://pay.mightymauls.com/brutaleye" id="payLink">reserve one</a>
+          </div>
+        </div>
+
+        <div class="preorder">
+          <h3>mystery dome</h3>
+          <p>A half sphere magnet, cast from the same cement as the squares. Finish undisclosed until it ships.</p>
+          <div class="row">
+            <span class="price">preorder<b>$15</b></span>
+            <a class="pay-btn" href="https://pay.mightymauls.com/brutaleye" id="payLinkDome">reserve one</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-body detail" id="artDetail" hidden>
+        <button class="back-btn" id="backBtn">← all pieces</button>
+        <div class="ph" id="dPh"></div>
+        <h3 id="dTitle"></h3>
+        <p class="sub" id="dSub"></p>
+        <dl>
+          <dt>materials</dt><dd id="dMat"></dd>
+          <dt>dimensions</dt><dd id="dDim"></dd>
+          <dt>poured</dt><dd id="dDate"></dd>
+        </dl>
+        <p class="note" id="dNote"></p>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-log" hidden>
+      <header><h2>log</h2><button class="close" aria-label="close">×</button></header>
+      <div class="panel-body log-scroll">
+        <div class="log-entry">
+          <span class="meta">log 008 — 2026.07.29</span>
+          sold the first mystery set. tile and dome. v excited.
+        </div>
+        <div class="log-entry">
+          <span class="meta">log 007 — 2026.07.29</span>
+          arri again. the engineer who built the cement forms, and brutally smart tech behind that. wants to make instruments out of cement now. i didn't say no. and matt is in utah?
+        </div>
+        <div class="log-entry">
+          <span class="meta">log 006 — 2026.07.25</span>
+          made the game today. it wasn't planned. i set nine of them next to each other and it got uncomfortable to look at — none of them can get out of each other's sight. that feeling is the game now.
+        </div>
+        <div class="log-entry">
+          <span class="meta">log 005 — 2026.07.25</span>
+          matt sent video of the prototype — square half-clad in glass. very cool. very chic.
+        </div>
+        <div class="log-entry">
+          <span class="meta">log 004 — 2026.07.20</span>
+          testing dyes and mix ratios for the cement square. small batches, small differences, big arguments.
+        </div>
+        <div class="log-entry">
+          <span class="meta">log 003 — 2026.07.14</span>
+          pitched the exhibit today — my art built around the engineer's cement square. it has a shape now. sent a sample home with the potential collaborator. my guess: it comes back with metal or glass in it.
+        </div>
+        <div class="log-entry">
+          <span class="meta">log 002 — 2026.07.02</span>
+          poured my own cement for the first time. somewhere between the mixing and the setting, a collab idea arrived.
+        </div>
+        <div class="log-entry">
+          <span class="meta">log 001 — 2026.06.19</span>
+          arri, a software engineer, came to me with an idea: a cement square.
+        </div>
+      </div>
+    </section>
+  </div>
+
+<script>
+  const EYE_SVG = `
+    <svg class="be-eye-svg" viewBox="0 0 56 56">
+      <defs>
+        <clipPath id="beEyeClip"><ellipse cx="28" cy="28" rx="21" ry="12"/></clipPath>
+      </defs>
+      <g class="eye-squash">
+        <ellipse class="sclera" cx="28" cy="28" rx="21" ry="12"/>
+        <g clip-path="url(#beEyeClip)">
+          <g class="blink-sync">
+            <g class="gaze-grp">
+              <g class="vibe-grp">
+                <g class="pupil-grp">
+                  <circle class="iris" cx="28" cy="28" r="7.5"/>
+                  <circle cx="28" cy="28" r="3" fill="#111"/>
+                </g>
+              </g>
+            </g>
+          </g>
+        </g>
+      </g>
+    </svg>`;
+
+  const grid = document.getElementById('grid');
+  for (let i = 0; i < 9; i++) {
+    const card = document.createElement('div');
+    card.className = 'be-card';
+    card.innerHTML = EYE_SVG;
+    grid.appendChild(card);
+  }
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const cards = Array.from(document.querySelectorAll('.be-card'));
+
+  // --- JS-scheduled blinking: irregular intervals, per-blink speed ---
+  function blinkOnce(card) {
+    const speed = 380 + Math.random() * 160;
+    card.style.setProperty('--blink-speed', speed.toFixed(0) + 'ms');
+    card.classList.remove('blinking');
+    void card.offsetWidth;
+    card.classList.add('blinking');
+    return speed;
+  }
+
+  function scheduleBlink(card, first) {
+    const wait = first
+      ? 800 + Math.random() * 7000
+      : 5500 + Math.random() * 8500;
+    setTimeout(() => {
+      const speed = blinkOnce(card);
+      if (Math.random() < 0.18) {
+        setTimeout(() => blinkOnce(card), speed + 120);
+      }
+      scheduleBlink(card, false);
+    }, wait);
+  }
+
+  // --- Rare coordinated gaze events ---
+  // The wander animation is paused mid-drift, so each pupil is frozen at a
+  // random offset. We read that frozen offset and subtract it from the
+  // commanded gaze, so every eye lands EXACTLY on the intended direction
+  // (otherwise frozen drift can cancel the gaze and the eye won't join in).
+  function wanderOffset(card) {
+    const t = getComputedStyle(card.querySelector('.pupil-grp')).transform;
+    const m = t && t !== 'none' && t.match(/matrix\(([^)]+)\)/);
+    if (!m) return { x: 0, y: 0 };
+    const p = m[1].split(',').map(Number);
+    return { x: p[4], y: p[5] };
+  }
+
+  let gazeActive = false;
+
+  function gazeEvent(forcedTarget) {
+    if (gazeActive) return;
+    gazeActive = true;
+    const dur = 2500 + Math.random() * 2000;
+    const stare = forcedTarget != null || Math.random() < 0.65;
+
+    if (stare) {
+      const t = forcedTarget != null ? forcedTarget : Math.floor(Math.random() * cards.length);
+      cards.forEach((card, i) => {
+        card.classList.add('gazing');           // pause wander first
+        const w = wanderOffset(card);
+        const g = card.querySelector('.gaze-grp');
+        if (i === t) {
+          // glide to exact center, then vibrate (on its own group)
+          card.classList.add('stare-target');
+          g.style.transform =
+            'translate(' + (-w.x).toFixed(2) + 'px, ' + (-w.y).toFixed(2) + 'px)';
+        } else {
+          const dc = (t % 3) - (i % 3);
+          const dr = Math.floor(t / 3) - Math.floor(i / 3);
+          const len = Math.hypot(dc, dr) || 1;
+          g.style.transform =
+            'translate(' + (dc / len * 5.2 - w.x).toFixed(2) + 'px, ' +
+                           (dr / len * 2.4 - w.y).toFixed(2) + 'px)';
+        }
+      });
+    } else {
+      const ang = Math.random() * Math.PI * 2;
+      const dx = Math.cos(ang) * 4.5;
+      const dy = Math.sin(ang) * 2.2;
+      cards.forEach(card => {
+        card.classList.add('gazing');
+        const w = wanderOffset(card);
+        card.querySelector('.gaze-grp').style.transform =
+          'translate(' + (dx - w.x).toFixed(2) + 'px, ' + (dy - w.y).toFixed(2) + 'px)';
+      });
+    }
+
+    setTimeout(() => {
+      cards.forEach(card => {
+        card.classList.remove('gazing', 'stare-target');
+        card.querySelector('.gaze-grp').style.transform = '';
+      });
+      gazeActive = false;
+    }, dur);
+  }
+
+  // clicking a card makes all eyes stare at it
+  cards.forEach((card, i) => card.addEventListener('click', () => gazeEvent(i)));
+
+  function scheduleGaze() {
+    setTimeout(() => {
+      gazeEvent();
+      scheduleGaze();
+    }, 25000 + Math.random() * 30000);
+  }
+
+  if (!reducedMotion) {
+    cards.forEach(c => scheduleBlink(c, true));
+    scheduleGaze();
+  }
+
+  // --- footer nav panels ---
+  const overlay = document.getElementById('overlay');
+  const navBtns = document.querySelectorAll('.nav-btn');
+  const panels = { game: document.getElementById('panel-game'),
+                   art: document.getElementById('panel-art'),
+                   log: document.getElementById('panel-log') };
+
+  function closePanels() {
+    overlay.hidden = true;
+    Object.values(panels).forEach(p => p.hidden = true);
+    navBtns.forEach(b => b.classList.remove('open'));
+    const d = document.getElementById('artDetail');
+    if (d) { d.hidden = true; document.getElementById('artIndex').hidden = false; }
+  }
+  function openPanel(name, btn) {
+    closePanels();
+    overlay.hidden = false;
+    panels[name].hidden = false;
+    btn.classList.add('open');
+  }
+
+  navBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.dataset.panel;
+      if (!panels[name].hidden) { closePanels(); return; }
+      openPanel(name, btn);
+    });
+  });
+  overlay.addEventListener('click', e => { if (e.target === overlay) closePanels(); });
+
+  // --- art gallery + piece detail ---
+  const PIECES = [
+    { t: 'cast 01', s: 'glass', c: '', mat: 'cement, glass inlay', dim: '100 × 100 × 25 mm', d: '2026.07.25',
+      n: 'matt\'s prototype. half the face clad in glass — the eye reads wet under it.' },
+    { t: 'cast 02', s: 'cement', c: 'v2', mat: 'raw cement, no dye', dim: '100 × 100 × 25 mm', d: '2026.07.02',
+      n: 'the control. everything else gets measured against this one.' },
+    { t: 'cast 03', s: 'terracotta', c: 'v3', mat: 'cement, iron oxide dye', dim: '100 × 100 × 25 mm', d: '2026.07.20',
+      n: 'highest dye ratio in the batch. warmest we could get before it went chalky.' },
+    { t: 'form 01', s: 'raw', c: 'v2', mat: 'cement, unsealed', dim: '100 × 100 × 30 mm', d: '2026.07.06',
+      n: 'left open to the air. the surface is still moving.' },
+    { t: 'form 02', s: 'fired', c: 'v3', mat: 'cement, oxide, sealed', dim: '100 × 100 × 30 mm', d: '2026.07.21',
+      n: 'sealed while warm. the dye sat deeper than expected.' },
+    { t: 'form 03', s: 'bleached', c: '', mat: 'cement, titanium white', dim: '100 × 100 × 25 mm', d: '2026.07.18',
+      n: 'pulled almost all the color out. the eye is the only dark thing left.' }
+  ];
+
+  // flip to true when the piece-detail view is ready to debut
+  const PIECE_DETAIL = false;
+
+  const gallery = document.getElementById('gallery');
+  const artIndex = document.getElementById('artIndex');
+  const artDetail = document.getElementById('artDetail');
+
+  if (PIECE_DETAIL) gallery.classList.add('clickable');
+
+  PIECES.forEach((p, i) => {
+    const fig = document.createElement('figure');
+    fig.innerHTML = '<div class="ph wip ' + p.c + '"></div><figcaption>' + p.t + ' — ' + p.s + '</figcaption>';
+    if (PIECE_DETAIL) fig.addEventListener('click', () => showPiece(i));
+    gallery.appendChild(fig);
+  });
+
+  function showPiece(i) {
+    const p = PIECES[i];
+    document.getElementById('dPh').className = 'ph wip ' + p.c;
+    document.getElementById('dTitle').textContent = p.t + ' — ' + p.s;
+    document.getElementById('dSub').textContent = 'brutal eye · edition of 9';
+    document.getElementById('dMat').textContent = p.mat;
+    document.getElementById('dDim').textContent = p.dim;
+    document.getElementById('dDate').textContent = p.d;
+    document.getElementById('dNote').textContent = p.n;
+    artIndex.hidden = true;
+    artDetail.hidden = false;
+  }
+  document.getElementById('backBtn').addEventListener('click', () => {
+    artDetail.hidden = true;
+    artIndex.hidden = false;
+  });
+  document.querySelectorAll('.close').forEach(b => b.addEventListener('click', closePanels));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanels(); });
+</script>
+
+</body>
+</html>

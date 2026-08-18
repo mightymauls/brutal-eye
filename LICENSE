@@ -1,0 +1,156 @@
+BRUTAL EYE — PROPRIETARY SOFTWARE LICENSE
+
+Copyright (c) 2026 Mighty Mauls. All rights reserved.
+
+This software is proprietary. It is licensed, not sold. No rights are granted
+except those expressly stated below.
+
+--------------------------------------------------------------------------------
+1. DEFINITIONS
+--------------------------------------------------------------------------------
+
+"Software" means the source code, markup, styling, scripts, animation logic,
+and accompanying files in this repository, in whole or in part, in original or
+modified form.
+
+"Licensor" means Mighty Mauls.
+
+"Authorized Property" means a website, application, or digital product owned
+and operated by Licensor, including mightymauls.com and its subdomains.
+
+"You" means any person or entity accessing the Software.
+
+--------------------------------------------------------------------------------
+2. GRANT OF LICENSE
+--------------------------------------------------------------------------------
+
+Licensor grants You a limited, non-exclusive, non-transferable, revocable
+license to view and execute the Software solely as it is deployed on an
+Authorized Property.
+
+This is the entire grant. Viewing source in a browser and running the Software
+as a visitor to an Authorized Property is permitted. Nothing else is.
+
+--------------------------------------------------------------------------------
+3. RESTRICTIONS
+--------------------------------------------------------------------------------
+
+Except under a separate written usage license signed by Licensor, You may NOT:
+
+  (a) copy, reproduce, or store the Software other than the transient caching
+      performed automatically by a browser during normal use;
+  (b) publish, distribute, transmit, host, mirror, or make the Software
+      available to any third party;
+  (c) deploy the Software, or any work derived from it, on any property other
+      than an Authorized Property;
+  (d) modify, adapt, translate, or create derivative works from the Software;
+  (e) sublicense, rent, lease, sell, resell, or offer the Software as part of
+      any product, service, template, theme, or asset library;
+  (f) use the Software or any portion of it in commercial work for yourself or
+      any client;
+  (g) remove, obscure, or alter any copyright, attribution, or license notice;
+  (h) use the Software to train, fine-tune, or evaluate any machine learning or
+      generative model.
+
+--------------------------------------------------------------------------------
+4. USAGE LICENSES
+--------------------------------------------------------------------------------
+
+Any use beyond Section 2 requires a written usage license from Licensor.
+Requests: mishan@mightymauls.com
+
+--------------------------------------------------------------------------------
+5. RESERVED RIGHTS — ARTWORK AND CONTENT
+--------------------------------------------------------------------------------
+
+The artwork, photographs, cast designs, written log entries, exhibition text,
+and the "Brutal Eye" and "Mighty Mauls" names and marks are NOT covered by any
+grant in this License. All rights in them are reserved absolutely.
+
+--------------------------------------------------------------------------------
+6. LIQUIDATED DAMAGES
+--------------------------------------------------------------------------------
+
+The parties acknowledge that unauthorized distribution or deployment of the
+Software causes harm that is real but difficult to quantify precisely, because
+it displaces license revenue Licensor would otherwise earn, dilutes the
+exclusivity that gives the Software its value, and is impractical to trace
+across downstream recipients. The amounts below are the parties' good-faith
+pre-estimate of that harm, calculated by reference to Licensor's commercial
+usage license fees. They are compensatory, not punitive.
+
+  TIER 1 — UNAUTHORIZED DEPLOYMENT
+  Deploying the Software, or a derivative of it, on a property that is not an
+  Authorized Property.
+      $2,500 per property.
+
+  TIER 2 — UNAUTHORIZED PUBLICATION
+  Publishing, mirroring, or otherwise making the Software available to third
+  parties, including in a public repository, archive, or file host.
+      $10,000 per instance.
+
+  TIER 3 — COMMERCIAL REDISTRIBUTION
+  Selling, sublicensing, or distributing the Software as or within a product,
+  service, template, theme, or asset library.
+      $25,000 per instance, plus disgorgement of all revenue attributable to
+      the infringing product or service.
+
+Tiers are not cumulative for a single act; the highest applicable tier governs.
+Each distinct property, publication, or product is a separate instance.
+
+These amounts are a floor and an alternative, not a cap. Licensor may instead
+elect actual damages, infringer's profits, or statutory damages under the
+Copyright Act, and nothing here waives or limits those remedies.
+
+--------------------------------------------------------------------------------
+7. COPYRIGHT REMEDIES PRESERVED
+--------------------------------------------------------------------------------
+
+Unauthorized copying or distribution of the Software is copyright infringement
+independent of this License. Licensor expressly reserves all remedies under
+17 U.S.C. § 501 et seq., including statutory damages of up to $30,000 per work
+infringed, and up to $150,000 per work where infringement is willful, together
+with costs and attorneys' fees where available under 17 U.S.C. § 505.
+
+--------------------------------------------------------------------------------
+8. INJUNCTIVE RELIEF
+--------------------------------------------------------------------------------
+
+You acknowledge that breach of Sections 3 or 5 would cause irreparable harm for
+which monetary damages alone are inadequate. Licensor is entitled to seek
+injunctive relief without the necessity of posting bond, in addition to all
+other remedies.
+
+--------------------------------------------------------------------------------
+9. TERMINATION
+--------------------------------------------------------------------------------
+
+This License terminates automatically and immediately upon any breach, without
+notice. Upon termination You must cease all use and destroy all copies in Your
+possession or control. Sections 5 through 12 survive termination.
+
+--------------------------------------------------------------------------------
+10. NO WARRANTY
+--------------------------------------------------------------------------------
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+--------------------------------------------------------------------------------
+11. LIMITATION OF LIABILITY
+--------------------------------------------------------------------------------
+
+IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM THE SOFTWARE OR ITS USE. Nothing in this Section limits
+Licensor's remedies against You under Sections 6 through 8.
+
+--------------------------------------------------------------------------------
+12. GENERAL
+--------------------------------------------------------------------------------
+
+This License is governed by the laws of the State of [STATE], without regard to
+conflict-of-laws rules. Exclusive venue lies in the state and federal courts of
+[COUNTY, STATE]. If any provision is held unenforceable, it shall be modified
+to the minimum extent necessary to make it enforceable, and the remainder stays
+in force. Licensor's failure to enforce any provision is not a waiver of it.

@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brutal Eye — Reassemble</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; height: 100dvh; }
+  body {
+    margin: 0;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+    background: #1c1b19;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #eae7e0;
+    overflow: hidden;
+  }
+
+  .be-card {
+    position: absolute;
+    width: var(--card, 100px);
+    height: var(--card, 100px);
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    background:
+      radial-gradient(circle at 25% 20%, rgba(255,255,255,0.18), transparent 45%),
+      linear-gradient(150deg, #e4e1da 0%, #d5d2c9 60%, #c9c5bb 100%);
+    box-shadow: inset 2px 2px 0 rgba(255,255,255,0.5), inset -2px -2px 5px rgba(0,0,0,0.15);
+  }
+  .be-card.dragging { cursor: grabbing; z-index: 10; }
+
+
+  .menu-link {
+    position: fixed;
+    top: 14px;
+    left: 16px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: #7d786c;
+    z-index: 20;
+    transition: color 0.2s ease;
+  }
+  .menu-link:hover { color: #eae7e0; }
+
+  /* sunken center panel */
+  .be-card::before {
+    content: "";
+    position: absolute;
+    inset: calc(var(--card, 100px) * 0.15);
+    border-radius: 2px;
+    background: rgba(0, 0, 0, 0.14);
+    box-shadow:
+      inset 2px 2px 3px rgba(0, 0, 0, 0.35),
+      inset -1px -1px 1px rgba(255, 255, 255, 0.15);
+    z-index: 0;
+  }
+
+  .iris { fill: #26241f; }
+  .sclera { fill: none; stroke: #26241f; stroke-width: 1.5; }
+
+  .be-eye-svg {
+    width: calc(var(--card, 100px) * 0.64);
+    height: calc(var(--card, 100px) * 0.64);
+    overflow: hidden; position: relative; z-index: 1;
+  }
+
+  /* magnetic pull on the whole eye (set from JS) */
+  .pull-grp { transition: transform 0.12s linear; }
+
+  /* wrong pieces close by: the eye goes completely blank */
+  .pupil-grp { transition: opacity 0.3s ease; }
+  .blank .pupil-grp { opacity: 0; }
+
+  .pupil-grp { animation: be-look 6s ease-in-out infinite; }
+  .be-card:nth-child(2n) .pupil-grp { animation-delay: -1.5s; }
+  .be-card:nth-child(3n) .pupil-grp { animation-delay: -3s; }
+  .be-card:nth-child(4n) .pupil-grp { animation-delay: -4.5s; }
+
+  @keyframes be-look {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-3px, 1px); }
+    40% { transform: translate(3px, -2px); }
+    60% { transform: translate(2px, 2px); }
+    80% { transform: translate(-2px, -1px); }
+  }
+
+  /* blink: animated clip-path aperture, JS-scheduled */
+  .be-eye-svg {
+    clip-path: path("M 2.3 -6.9 Q 32 -6.9 61.7 -6.9 L 61.7 70.9 Q 32 70.9 2.3 70.9 Z");
+  }
+  .blinking .be-eye-svg { animation: be-aperture var(--blink-speed, 420ms) both; }
+  .blinking .blink-sync { animation: be-dip var(--blink-speed, 420ms) ease-in-out both; }
+  .blinking .eye-squash { animation: be-squash var(--blink-speed, 420ms) ease-in-out both; }
+
+  .eye-squash { transform-box: view-box; transform-origin: 28px 28px; }
+
+  @keyframes be-aperture {
+    0% {
+      clip-path: path("M 2.3 -6.9 Q 32 -6.9 61.7 -6.9 L 61.7 70.9 Q 32 70.9 2.3 70.9 Z");
+      animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+    }
+    32% {
+      clip-path: path("M 2.3 32 Q 32 61.7 61.7 32 L 61.7 32 Q 32 61.7 2.3 32 Z");
+      animation-timing-function: linear;
+    }
+    45% {
+      clip-path: path("M 2.3 32 Q 32 61.7 61.7 32 L 61.7 32 Q 32 61.7 2.3 32 Z");
+      animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    100% {
+      clip-path: path("M 2.3 -6.9 Q 32 -6.9 61.7 -6.9 L 61.7 70.9 Q 32 70.9 2.3 70.9 Z");
+    }
+  }
+  @keyframes be-dip {
+    0%   { transform: translateY(0); }
+    34%  { transform: translateY(1.5px); }
+    48%  { transform: translateY(1.5px); }
+    100% { transform: translateY(0); }
+  }
+  @keyframes be-squash {
+    0%   { transform: scaleY(1); }
+    36%  { transform: scaleY(0.93); }
+    48%  { transform: scaleY(0.93); }
+    100% { transform: scaleY(1); }
+  }
+
+  /* gaze events */
+  .gaze-grp { transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1); }
+  .gazing .pupil-grp { animation-play-state: paused; }
+  .stare-target .eye-squash { animation: be-vibrate 80ms linear infinite; }
+
+  @keyframes be-vibrate {
+    0%, 100% { transform: translateX(-1px); }
+    50%      { transform: translateX(1px); }
+  }
+
+  .quote {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+    margin: 0;
+    font-size: 14px;
+    font-style: italic;
+    letter-spacing: 0.04em;
+    color: #a9a49a;
+    text-align: center;
+    pointer-events: none;
+    transition: color 0.8s ease;
+  }
+  .hint {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    margin: 0;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: #5d594f;
+    text-align: center;
+    pointer-events: none;
+  }
+  body.won .quote { color: #eae7e0; }
+
+  .reset-btn {
+    position: fixed;
+    left: 50%;
+    bottom: 70px;
+    transform: translateX(-50%);
+    appearance: none;
+    border: 1px solid #55524c;
+    background: #2a2926;
+    color: #cfcac0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 9px 18px;
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease, background 0.2s ease, border-color 0.2s ease;
+  }
+  .reset-btn:hover { background: #37352f; border-color: #74705f; }
+  .reset-btn:active { transform: translateX(-50%) translateY(1px); }
+  body.won .reset-btn {
+    opacity: 1;
+    pointer-events: auto;
+    transition-delay: 1.8s;   /* let the celebration play first */
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .be-eye-svg, .blink-sync, .eye-squash, .gaze-grp, .pupil-grp, .pull-grp { animation: none; transition: none; }
+  }
+</style>
+</head>
+<body>
+
+  <a class="menu-link" href="./">menu</a>
+  <p class="quote" id="quote">"i dont know whats happening"</p>
+  <p class="hint">put them back together</p>
+  <button class="reset-btn" id="resetBtn">reset</button>
+
+<script>
+  const EYE_SVG = `
+    <svg class="be-eye-svg" viewBox="0 0 56 56">
+      <defs>
+        <clipPath id="beEyeClip"><ellipse cx="28" cy="28" rx="21" ry="12"/></clipPath>
+      </defs>
+      <g class="pull-grp">
+        <g class="eye-squash">
+          <ellipse class="sclera" cx="28" cy="28" rx="21" ry="12"/>
+          <g clip-path="url(#beEyeClip)">
+            <g class="blink-sync">
+              <g class="gaze-grp">
+                <g class="vibe-grp">
+                  <g class="pupil-grp">
+                    <circle class="iris" cx="28" cy="28" r="7.5"/>
+                    <circle cx="28" cy="28" r="3" fill="#111"/>
+                  </g>
+                </g>
+              </g>
+            </g>
+          </g>
+        </g>
+      </g>
+    </svg>`;
+
+  // level: ?grid=6 → 6×6, otherwise 3×3
+  const GRID = /(^|[?&])grid=6/.test(location.search) ? 6 : 3;
+  const N = GRID * GRID;
+
+  // Tile size adapts to the viewport so the assembled grid always fits,
+  // with room left over to scatter into. Recomputed on resize/rotate.
+  let CARD, GAP, SPACING, SNAP_TOL, PULL_R, BLANK_R;
+  function measure() {
+    const base = GRID === 6 ? 72 : 100;
+    const W = innerWidth, H = innerHeight;
+    const fitW = (W - 28 - (GRID - 1) * 9) / GRID;
+    const fitH = (H - 120 - (GRID - 1) * 9) / GRID;
+    CARD = Math.max(38, Math.min(base, Math.floor(Math.min(fitW, fitH))));
+    GAP = Math.max(5, Math.round(CARD * 0.09));
+    SPACING = CARD + GAP;
+    SNAP_TOL = Math.max(18, CARD * 0.28);
+    PULL_R = CARD * 1.5;
+    BLANK_R = CARD * 1.2;
+    document.documentElement.style.setProperty('--card', CARD + 'px');
+  }
+  measure();
+  const quote = document.getElementById('quote');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const cards = [], pos = [];
+  for (let i = 0; i < N; i++) {
+    const card = document.createElement('div');
+    card.className = 'be-card';
+    card.innerHTML = EYE_SVG;
+    document.body.appendChild(card);
+    cards.push(card);
+  }
+
+  function applyPos(i) {
+    cards[i].style.left = pos[i].x + 'px';
+    cards[i].style.top = pos[i].y + 'px';
+  }
+
+  function scatter() {
+    const W = innerWidth, H = innerHeight;
+    const placed = [];
+    for (let i = 0; i < N; i++) {
+      let x = 20, y = 20, tries = 0;
+      do {
+        x = 20 + Math.random() * Math.max(1, W - CARD - 40);
+        y = 20 + Math.random() * Math.max(1, H - CARD - 100);
+      } while (++tries < 80 && !placed.every(p => Math.hypot(p.x - x, p.y - y) > CARD * 1.15));
+      placed.push({ x, y });
+      pos[i] = { x, y };
+      applyPos(i);
+    }
+  }
+  scatter();
+
+  // --- solution layout: card i belongs at (row i/3, col i%3) ---
+  const rowOf = i => Math.floor(i / GRID), colOf = i => i % GRID;
+  function isNeighbor(a, b) {
+    return Math.abs(rowOf(a) - rowOf(b)) + Math.abs(colOf(a) - colOf(b)) === 1;
+  }
+  function expectedOffset(a, b) {   // where b should sit relative to a
+    return { x: (colOf(b) - colOf(a)) * SPACING, y: (rowOf(b) - rowOf(a)) * SPACING };
+  }
+
+  // --- clusters (union-find): snapped pieces move together ---
+  const parent = Array.from({ length: N }, (_, i) => i);
+  const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
+  const union = (a, b) => { parent[find(b)] = find(a); };
+  const sameCluster = (a, b) => find(a) === find(b);
+  const clusterOf = i => { const r = find(i); return [...Array(N).keys()].filter(j => find(j) === r); };
+
+  // --- dragging ---
+  let drag = null, won = false;
+  cards.forEach((card, i) => {
+    card.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      card.setPointerCapture(e.pointerId);
+      drag = { i, px: e.clientX, py: e.clientY, members: clusterOf(i) };
+      drag.members.forEach(j => cards[j].classList.add('dragging'));
+    });
+    card.addEventListener('pointermove', e => {
+      if (!drag || drag.i !== i) return;
+      const dx = e.clientX - drag.px, dy = e.clientY - drag.py;
+      drag.px = e.clientX; drag.py = e.clientY;
+      // keep the dragged cluster from leaving the screen entirely
+      const xs = drag.members.map(j => pos[j].x), ys = drag.members.map(j => pos[j].y);
+      const minX = Math.min(...xs) + dx, maxX = Math.max(...xs) + dx;
+      const minY = Math.min(...ys) + dy, maxY = Math.max(...ys) + dy;
+      let ax = dx, ay = dy;
+      if (maxX > innerWidth - 12) ax -= maxX - (innerWidth - 12);
+      if (minX < 12 - CARD + 24) ax += (12 - CARD + 24) - minX;
+      if (maxY > innerHeight - 12) ay -= maxY - (innerHeight - 12);
+      if (minY < 8) ay += 8 - minY;
+      drag.members.forEach(j => { pos[j].x += ax; pos[j].y += ay; applyPos(j); });
+    });
+    card.addEventListener('pointerup', e => {
+      if (!drag || drag.i !== i) return;
+      drag.members.forEach(j => cards[j].classList.remove('dragging'));
+      trySnap(drag.members);
+      drag = null;
+      checkWin();
+    });
+  });
+
+  function trySnap(members) {
+    let best = null;
+    members.forEach(a => {
+      for (let b = 0; b < N; b++) {
+        if (members.includes(b) || !isNeighbor(a, b)) continue;
+        const exp = expectedOffset(a, b);
+        const dx = (pos[b].x - pos[a].x) - exp.x;
+        const dy = (pos[b].y - pos[a].y) - exp.y;
+        const d = Math.hypot(dx, dy);
+        if (d < SNAP_TOL && (!best || d < best.d)) best = { dx, dy, d };
+      }
+    });
+    if (!best) return;
+    members.forEach(j => { pos[j].x += best.dx; pos[j].y += best.dy; applyPos(j); });
+    // union every correctly-aligned neighbor pair
+    for (let a = 0; a < N; a++) for (let b = a + 1; b < N; b++) {
+      if (!isNeighbor(a, b)) continue;
+      const exp = expectedOffset(a, b);
+      if (Math.abs((pos[b].x - pos[a].x) - exp.x) < 2 &&
+          Math.abs((pos[b].y - pos[a].y) - exp.y) < 2) union(a, b);
+    }
+  }
+
+  // --- pairwise interactions, every frame ---
+  // true neighbors near each other: magnetic pull on the whole eye
+  // wrong pieces near each other: both eyes go blank
+  function tick() {
+    const pull = cards.map(() => ({ x: 0, y: 0 }));
+    const blank = new Set();
+    for (let a = 0; a < N; a++) for (let b = a + 1; b < N; b++) {
+      if (sameCluster(a, b)) continue;   // assembled pieces are at peace
+      const dx = (pos[b].x - pos[a].x), dy = (pos[b].y - pos[a].y);
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < PULL_R && isNeighbor(a, b)) {
+        const s = 7 * (1 - d / PULL_R), ux = dx / d, uy = dy / d;
+        pull[a].x += ux * s; pull[a].y += uy * s;
+        pull[b].x -= ux * s; pull[b].y -= uy * s;
+      } else if (d < BLANK_R && !isNeighbor(a, b)) {
+        blank.add(a); blank.add(b);
+      }
+    }
+    cards.forEach((card, i) => {
+      let { x, y } = pull[i];
+      const m = Math.hypot(x, y);
+      if (m > 8) { x *= 8 / m; y *= 8 / m; }
+      card.querySelector('.pull-grp').style.transform =
+        (x || y) ? 'translate(' + x.toFixed(1) + 'px, ' + y.toFixed(1) + 'px)' : '';
+      card.classList.toggle('blank', blank.has(i));
+    });
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // --- win ---
+  function checkWin() {
+    if (won || new Set(cards.map((_, i) => find(i))).size !== 1) return;
+    won = true;
+    document.body.classList.add('won');
+    quote.textContent = '"i know exactly whats happening"';
+    const cx = pos.reduce((s, p) => s + p.x + CARD / 2, 0) / N;
+    const cy = pos.reduce((s, p) => s + p.y + CARD / 2, 0) / N;
+    cards.forEach((card, i) => {
+      card.classList.add('gazing', 'stare-target');
+      const w = wanderOffset(card);
+      const dx = cx - (pos[i].x + CARD / 2), dy = cy - (pos[i].y + CARD / 2);
+      const d = Math.hypot(dx, dy) || 1;
+      card.querySelector('.gaze-grp').style.transform =
+        'translate(' + (dx / d * 5.2 - w.x).toFixed(2) + 'px, ' +
+                       (dy / d * 2.4 - w.y).toFixed(2) + 'px)';
+    });
+    setTimeout(() => {
+      cards.forEach(card => {
+        card.classList.remove('gazing', 'stare-target');
+        card.querySelector('.gaze-grp').style.transform = '';
+      });
+    }, 3500);
+  }
+
+  // --- blinking (irregular, JS-scheduled) ---
+  function blinkOnce(card) {
+    const speed = 380 + Math.random() * 160;
+    card.style.setProperty('--blink-speed', speed.toFixed(0) + 'ms');
+    card.classList.remove('blinking');
+    void card.offsetWidth;
+    card.classList.add('blinking');
+    return speed;
+  }
+  function scheduleBlink(card, first) {
+    const wait = first ? 800 + Math.random() * 7000 : 5500 + Math.random() * 8500;
+    setTimeout(() => {
+      const speed = blinkOnce(card);
+      if (Math.random() < 0.18) setTimeout(() => blinkOnce(card), speed + 120);
+      scheduleBlink(card, false);
+    }, wait);
+  }
+
+  // --- rare gaze events (directions from live positions) ---
+  function wanderOffset(card) {
+    const t = getComputedStyle(card.querySelector('.pupil-grp')).transform;
+    const m = t && t !== 'none' && t.match(/matrix\(([^)]+)\)/);
+    if (!m) return { x: 0, y: 0 };
+    const p = m[1].split(',').map(Number);
+    return { x: p[4], y: p[5] };
+  }
+
+  let gazeActive = false;
+  function gazeEvent() {
+    if (gazeActive || drag || won) return;
+    gazeActive = true;
+    const dur = 2500 + Math.random() * 2000;
+    const stare = Math.random() < 0.65;
+
+    if (stare) {
+      const t = Math.floor(Math.random() * N);
+      cards.forEach((card, i) => {
+        card.classList.add('gazing');
+        const w = wanderOffset(card);
+        const g = card.querySelector('.gaze-grp');
+        if (i === t) {
+          card.classList.add('stare-target');
+          g.style.transform =
+            'translate(' + (-w.x).toFixed(2) + 'px, ' + (-w.y).toFixed(2) + 'px)';
+        } else {
+          const dx = pos[t].x - pos[i].x, dy = pos[t].y - pos[i].y;
+          const d = Math.hypot(dx, dy) || 1;
+          g.style.transform =
+            'translate(' + (dx / d * 5.2 - w.x).toFixed(2) + 'px, ' +
+                           (dy / d * 2.4 - w.y).toFixed(2) + 'px)';
+        }
+      });
+    } else {
+      const ang = Math.random() * Math.PI * 2;
+      const dx = Math.cos(ang) * 4.5, dy = Math.sin(ang) * 2.2;
+      cards.forEach(card => {
+        card.classList.add('gazing');
+        const w = wanderOffset(card);
+        card.querySelector('.gaze-grp').style.transform =
+          'translate(' + (dx - w.x).toFixed(2) + 'px, ' + (dy - w.y).toFixed(2) + 'px)';
+      });
+    }
+
+    setTimeout(() => {
+      cards.forEach(card => {
+        if (won) return;
+        card.classList.remove('gazing', 'stare-target');
+        card.querySelector('.gaze-grp').style.transform = '';
+      });
+      gazeActive = false;
+    }, dur);
+  }
+  function scheduleGaze() {
+    setTimeout(() => { gazeEvent(); scheduleGaze(); }, 25000 + Math.random() * 30000);
+  }
+
+  // --- resize / rotate: re-measure tiles and pull everything back on screen ---
+  let rzT;
+  addEventListener('resize', () => {
+    clearTimeout(rzT);
+    rzT = setTimeout(() => {
+      const oldSp = SPACING;
+      measure();
+      const k = SPACING / oldSp;
+      for (let i = 0; i < N; i++) {
+        pos[i].x = Math.min(Math.max(pos[i].x * k, 8), innerWidth - CARD - 8);
+        pos[i].y = Math.min(Math.max(pos[i].y * k, 8), innerHeight - CARD - 60);
+        applyPos(i);
+      }
+    }, 150);
+  });
+
+  // --- reset: scatter the tiles and start over ---
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    won = false;
+    document.body.classList.remove('won');
+    quote.textContent = '"i dont know whats happening"';
+    for (let i = 0; i < N; i++) parent[i] = i;   // break up all clusters
+    cards.forEach(card => {
+      card.classList.remove('gazing', 'stare-target', 'blank', 'dragging');
+      card.querySelector('.gaze-grp').style.transform = '';
+    });
+    scatter();
+  });
+
+  if (!reducedMotion) {
+    cards.forEach(c => scheduleBlink(c, true));
+    scheduleGaze();
+  }
+</script>
+
+</body>
+</html>
