@@ -1,0 +1,11 @@
+name = "brutaleye-proxy"
+main = "src/index.js"
+compatibility_date = "2026-10-25"
+workers_dev = false
+
+# Two explicit patterns rather than /brutaleye* so the route cannot also
+# swallow sibling paths like /brutaleyewear.
+routes = [
+  { pattern = "mightymauls.com/brutaleye", zone_name = "mightymauls.com" },
+  { pattern = "mightymauls.com/brutaleye/*", zone_name = "mightymauls.com" },
+]
